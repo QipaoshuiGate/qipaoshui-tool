@@ -137,7 +137,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          RELEASE_ID: ${{ steps.tauri.outputs.releaseId }}
+          # tauri-action doesn't emit a releaseId output when the release is
+          # pre-created by the create-release job, so use that job's id.
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
         run: |
           set -euo pipefail
 

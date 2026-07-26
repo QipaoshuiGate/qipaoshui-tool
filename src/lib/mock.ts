@@ -64,10 +64,14 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
     case "me":
       return user;
     case "get_public_settings":
-      // `?turnstile` 让浏览器预览渲染真实的人机验证 iframe（线上 embed 页）
+      // `?turnstile` 让浏览器预览渲染真实的人机验证 iframe。
+      // 站点密钥是 Cloudflare 官方"永远通过"的测试密钥，任何域名可用。
       return q?.has("turnstile")
-        ? { turnstile_enabled: true, turnstile_site_key: "managed-by-embed-page" }
+        ? { turnstile_enabled: true, turnstile_site_key: "1x00000000000000000000AA" }
         : { turnstile_enabled: false, turnstile_site_key: "" };
+    case "turnstile_embed_url":
+      // 浏览器预览模式下由 Vite 直接提供同一份 embed 页面
+      return "/turnstile-embed.html";
     case "send_verify_code":
       return { message: "ok", countdown: 60 };
     case "list_api_keys":

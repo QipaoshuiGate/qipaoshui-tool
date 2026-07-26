@@ -50,4 +50,6 @@ export const api = {
     call<void>("apply_qipaoshui_provider", { params }),
   restoreOfficial: () => call<void>("restore_official_provider"),
   providerStatus: () => call<StatusInfo>("provider_status"),
+
+  turnstileEmbedUrl: () => call<string>("turnstile_embed_url"),
 };

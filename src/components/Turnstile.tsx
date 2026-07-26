@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { api } from "../lib/api";
 
 // The Cloudflare Turnstile challenge refuses to run on the packaged app's own
 // origin (tauri://localhost is not a valid http(s) origin), so the widget is
-// hosted by the service itself at /turnstile/embed — a real https page on the
-// allowlisted domain — and embedded here in an iframe. The page reports back
-// via postMessage. Host must match BASE_URL in src-tauri/src/http_client.rs.
-const EMBED_ORIGIN = "https://qipaoshui.buzz";
-const EMBED_URL = `${EMBED_ORIGIN}/turnstile/embed`;
+// rendered by public/turnstile-embed.html, served from a loopback HTTP server
+// owned by the Rust side (embed_server.rs) — a real http://localhost origin
+// on every platform — and embedded here in an iframe that reports back via
+// postMessage. Requires `localhost` in the sitekey's allowed-domains list.
 const READY_TIMEOUT_MS = 15_000;
 
 interface EmbedMessage {
@@ -16,23 +16,43 @@ interface EmbedMessage {
   code?: string;
 }
 
-export function Turnstile({ onToken }: { onToken: (token: string) => void }) {
+export function Turnstile({
+  sitekey,
+  onToken,
+}: {
+  sitekey: string;
+  onToken: (token: string) => void;
+}) {
   const frameRef = useRef<HTMLIFrameElement>(null);
+  const [src, setSrc] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
     setReady(false);
     setErr(null);
+    setSrc(null);
+
+    api
+      .turnstileEmbedUrl()
+      .then((base) => {
+        if (cancelled) return;
+        const u = new URL(base, location.origin);
+        u.searchParams.set("sitekey", sitekey);
+        setSrc(u.toString());
+      })
+      .catch(() => !cancelled && setErr("人机验证初始化失败"));
+
     const timer = setTimeout(
       () => setErr("人机验证加载超时，请检查网络后重试"),
       READY_TIMEOUT_MS,
     );
 
     function onMessage(e: MessageEvent<EmbedMessage>) {
-      // only trust messages coming from our own embed page's iframe
-      if (e.origin !== EMBED_ORIGIN || e.source !== frameRef.current?.contentWindow) return;
+      // only trust messages coming from our own embed iframe
+      if (e.source !== frameRef.current?.contentWindow) return;
       if (e.data?.source !== "qipaoshui-turnstile") return;
       switch (e.data.event) {
         case "ready":
@@ -55,26 +75,29 @@ export function Turnstile({ onToken }: { onToken: (token: string) => void }) {
     }
     window.addEventListener("message", onMessage);
     return () => {
+      cancelled = true;
       clearTimeout(timer);
       window.removeEventListener("message", onMessage);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attempt]);
+  }, [sitekey, attempt]);
 
   function retry() {
     onToken("");
-    setAttempt((n) => n + 1); // key change below remounts the iframe
+    setAttempt((n) => n + 1); // effect re-runs; key change remounts the iframe
   }
 
   return (
     <div className="flex flex-col items-center gap-1">
-      <iframe
-        key={attempt}
-        ref={frameRef}
-        src={EMBED_URL}
-        title="人机验证"
-        className={ready ? "h-[65px] w-[300px] border-0" : "h-0 w-0 border-0"}
-      />
+      {src && (
+        <iframe
+          key={attempt}
+          ref={frameRef}
+          src={src}
+          title="人机验证"
+          className={ready ? "h-[65px] w-[300px] border-0" : "h-0 w-0 border-0"}
+        />
+      )}
       {!ready && !err && <p className="text-xs text-slate-400">人机验证加载中…</p>}
       {err && (
         <div className="flex items-center gap-2">

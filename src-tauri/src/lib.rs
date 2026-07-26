@@ -1,6 +1,7 @@
 mod api_keys;
 mod auth;
 mod config;
+mod embed_server;
 mod error;
 mod http_client;
 mod provider;
@@ -104,6 +105,15 @@ fn provider_status() -> Result<StatusInfo, error::AppError> {
     provider::current_status()
 }
 
+// ---------------- Turnstile embed ----------------
+
+#[tauri::command]
+fn turnstile_embed_url(state: tauri::State<'_, embed_server::EmbedState>) -> String {
+    // hostname must be `localhost` (not 127.0.0.1) to match the Turnstile
+    // sitekey domain allowlist entry
+    format!("http://localhost:{}/turnstile", state.port)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let _ = Method::GET; // make sure reqwest import is referenced
@@ -113,6 +123,8 @@ pub fn run() {
         .setup(|app| {
             let state = HttpState::new(app.handle().clone());
             app.manage(state);
+            let port = tauri::async_runtime::block_on(embed_server::start())?;
+            app.manage(embed_server::EmbedState { port });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -132,6 +144,7 @@ pub fn run() {
             apply_qipaoshui_provider,
             restore_official_provider,
             provider_status,
+            turnstile_embed_url,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; connect-src https://challenges.cloudflare.com; img-src https://challenges.cloudflare.com data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<title>人机验证</title>
+<style>html,body{margin:0;padding:0;background:transparent;overflow:hidden}#cf{display:flex;justify-content:center}</style>
+</head>
+<body>
+<div id="cf"></div>
+<script>
+// Served on a loopback origin by the desktop app (embed_server.rs) — and by
+// Vite in browser dev — so the Turnstile challenge runs on a real http(s)
+// origin instead of tauri://localhost, where Cloudflare refuses to execute.
+// Reports to the embedding window; message shape is the contract with
+// src/components/Turnstile.tsx.
+(function () {
+  function send(msg) {
+    msg.source = "qipaoshui-turnstile";
+    parent.postMessage(msg, "*");
+  }
+  var params = new URLSearchParams(location.search);
+  var sitekey = params.get("sitekey") || "";
+  var theme = params.get("theme");
+  if (theme !== "dark" && theme !== "light") theme = "auto";
+  if (!sitekey) {
+    send({ event: "error", code: "missing-sitekey" });
+    return;
+  }
+  window.qpsOnload = function () {
+    try {
+      turnstile.render(document.getElementById("cf"), {
+        sitekey: sitekey,
+        theme: theme,
+        callback: function (t) { send({ event: "token", token: t }); },
+        "expired-callback": function () { send({ event: "expired" }); },
+        "error-callback": function (code) {
+          send({ event: "error", code: String(code == null ? "" : code) });
+          return true;
+        },
+      });
+      send({ event: "ready" });
+    } catch (e) {
+      send({ event: "error", code: String((e && e.message) || e) });
+    }
+  };
+})();
+</script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=qpsOnload&render=explicit" async defer></script>
+</body>
+</html>
