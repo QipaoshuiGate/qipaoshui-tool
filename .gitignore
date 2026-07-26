@@ -1,0 +1,9 @@
+# Dependencies
+node_modules/
+
+# Frontend build output
+dist/
+
+# Editor/OS
+.DS_Store
+*.local

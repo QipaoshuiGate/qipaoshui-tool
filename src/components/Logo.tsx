@@ -1,0 +1,19 @@
+export function Logo({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden="true">
+      <defs>
+        <linearGradient id="qps-logo-g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#38cffb" />
+          <stop offset="100%" stopColor="#0080c2" />
+        </linearGradient>
+      </defs>
+      <rect x="2" y="2" width="44" height="44" rx="13" fill="url(#qps-logo-g)" />
+      <circle cx="18" cy="30" r="7.5" fill="#fff" opacity="0.95" />
+      <circle cx="16" cy="27.5" r="2" fill="#7cdcff" opacity="0.9" />
+      <circle cx="31.5" cy="18.5" r="4.5" fill="#fff" opacity="0.8" />
+      <circle cx="31" cy="31.5" r="2.6" fill="#fff" opacity="0.6" />
+      <circle cx="20.5" cy="13.5" r="2.2" fill="#fff" opacity="0.55" />
+      <circle cx="37" cy="27" r="1.4" fill="#fff" opacity="0.5" />
+    </svg>
+  );
+}
