@@ -1,6 +1,6 @@
 [package]
 name = "qipaoshui-tool"
-version = "0.1.0"
+version = "0.1.1"
 description = "Qipaoshui sub2api desktop tool"
 authors = ["qipaoshui"]
 edition = "2021"
