@@ -104,6 +104,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Build app and create GitHub release
+        id: tauri
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -122,3 +123,47 @@ jobs:
           # body, and draft/prerelease flags are set there.
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.tauri-args }}
+
+      # Tauri stamps the version into every bundle filename, so a link to a
+      # specific installer breaks on the next release. Upload a second copy of
+      # each installer under a version-less name as well, so download links can
+      # point at /releases/latest/download/<name> and never need updating.
+      # The version-stamped originals are left untouched.
+      #
+      # Uses the release id (not the tag) because the release is still a draft
+      # at this point, and drafts are not resolvable by tag via the API.
+      - name: Upload version-less installer aliases
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RELEASE_ID: ${{ steps.tauri.outputs.releaseId }}
+        run: |
+          set -euo pipefail
+
+          # find, not a globstar glob: macOS runners still ship bash 3.2.
+          while IFS= read -r path; do
+            case "$(basename "$path")" in
+              *_aarch64.dmg) alias=qipaoshui-tool-macos-aarch64.dmg ;;
+              *_x64.dmg)     alias=qipaoshui-tool-macos-x64.dmg ;;
+              *-setup.exe)   alias=qipaoshui-tool-windows-x64-setup.exe ;;
+              *.msi)         alias=qipaoshui-tool-windows-x64.msi ;;
+              *.deb)         alias=qipaoshui-tool-linux-amd64.deb ;;
+              *.rpm)         alias=qipaoshui-tool-linux-x86_64.rpm ;;
+              *.AppImage)    alias=qipaoshui-tool-linux-amd64.AppImage ;;
+              *) continue ;;
+            esac
+
+            # Make re-runs idempotent: drop a same-named asset if one exists.
+            old=$(gh api "repos/$REPO/releases/$RELEASE_ID/assets" \
+              --jq ".[] | select(.name == \"$alias\") | .id")
+            if [ -n "$old" ]; then
+              gh api --method DELETE "repos/$REPO/releases/$RELEASE_ID/assets/$old" >/dev/null
+            fi
+
+            echo "uploading $alias  <-  $path"
+            gh api --method POST \
+              -H "Content-Type: application/octet-stream" \
+              "https://uploads.github.com/repos/$REPO/releases/$RELEASE_ID/assets?name=$alias" \
+              --input "$path" >/dev/null
+          done < <(find src-tauri/target -type f -path '*/release/bundle/*')
