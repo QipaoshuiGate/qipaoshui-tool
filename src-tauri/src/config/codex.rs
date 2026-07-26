@@ -153,6 +153,12 @@ fn build_codex_config_text(
     tbl["base_url"] = toml_edit::value(params.base_url);
     tbl["wire_api"] = toml_edit::value(params.wire_api);
     tbl["experimental_bearer_token"] = toml_edit::value(params.api_key);
+    // Required for image generation with GPT 5.6-series models (qipaoshui-docs
+    // FAQ). Both keys must live inside the provider section, not top-level.
+    tbl["requires_openai_auth"] = toml_edit::value(false);
+    let mut headers = toml_edit::InlineTable::new();
+    headers.insert("x-openai-actor-authorization", "local-image-extension".into());
+    tbl["http_headers"] = toml_edit::value(headers);
     providers.insert(QIPAOSHUI_PROVIDER_ID, toml_edit::Item::Table(tbl));
 
     Ok(doc.to_string())
@@ -234,6 +240,20 @@ mod tests {
     fn apply_marks_active() {
         assert!(!is_qipaoshui_active(OFFICIAL));
         assert!(is_qipaoshui_active(&applied(OFFICIAL)));
+    }
+
+    #[test]
+    fn apply_includes_gpt56_image_generation_fix() {
+        let doc: toml::Value = applied(OFFICIAL).parse().unwrap();
+        let provider = &doc["model_providers"][QIPAOSHUI_PROVIDER_ID];
+        assert_eq!(provider["requires_openai_auth"].as_bool(), Some(false));
+        assert_eq!(
+            provider["http_headers"]["x-openai-actor-authorization"].as_str(),
+            Some("local-image-extension")
+        );
+        // must be inside the provider section only, never top-level
+        assert!(doc.get("requires_openai_auth").is_none());
+        assert!(doc.get("http_headers").is_none());
     }
 
     #[test]
