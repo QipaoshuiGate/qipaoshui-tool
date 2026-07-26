@@ -39,7 +39,9 @@ Invariants to preserve when touching this code:
 - These are the user's live `~/.codex` and `~/.claude` configs. Mutations must stay merge-based (preserve unrelated keys/formatting); full-file writes are only allowed when restoring a snapshot.
 - The unit tests in `codex.rs` and `backup.rs` encode exactly these invariants — extend them when changing apply/strip/snapshot logic.
 
-**Frontend.** No router: the current page is a field in the zustand store ([src/lib/store.ts](src/lib/store.ts)); [App.tsx](src/App.tsx) switches between `AuthPage`, `Dashboard`, and `KeysPage`. Server state goes through TanStack Query. When the frontend runs in a plain browser without Tauri, `IS_MOCK` in `api.ts` routes every command to [src/lib/mock.ts](src/lib/mock.ts) with fake data (`?page=keys` deep-links a screen) — useful for UI work without the Rust side. UI copy is Chinese.
+**Frontend.** No router: the current page is a field in the zustand store ([src/lib/store.ts](src/lib/store.ts)); [App.tsx](src/App.tsx) switches between `AuthPage`, `Dashboard`, and `KeysPage`. Server state goes through TanStack Query. When the frontend runs in a plain browser without Tauri, `IS_MOCK` in `api.ts` routes every command to [src/lib/mock.ts](src/lib/mock.ts) with fake data (`?page=keys` deep-links a screen; `?turnstile` enables the captcha iframe) — useful for UI work without the Rust side. UI copy is Chinese.
+
+**Turnstile (cross-repo contract).** Cloudflare Turnstile cannot run on the packaged app's `tauri://localhost` origin, so [Turnstile.tsx](src/components/Turnstile.tsx) iframes `https://qipaoshui.buzz/turnstile/embed` — a frame-exempt page served by the qipaoshui server (BurstWhite/qipaoshui, `backend/internal/handler/turnstile_embed_handler.go`) that runs the widget on the allowlisted https origin and posts `{source: "qipaoshui-turnstile", event: ready|token|expired|error}` back via postMessage. Changing the message shape or path breaks the other side.
 
 ## CI / Releases
 

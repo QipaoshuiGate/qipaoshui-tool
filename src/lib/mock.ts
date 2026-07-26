@@ -64,7 +64,10 @@ export async function mockInvoke(cmd: string, args?: Record<string, unknown>): P
     case "me":
       return user;
     case "get_public_settings":
-      return { turnstile_enabled: false, turnstile_site_key: "" };
+      // `?turnstile` 让浏览器预览渲染真实的人机验证 iframe（线上 embed 页）
+      return q?.has("turnstile")
+        ? { turnstile_enabled: true, turnstile_site_key: "managed-by-embed-page" }
+        : { turnstile_enabled: false, turnstile_site_key: "" };
     case "send_verify_code":
       return { message: "ok", countdown: 60 };
     case "list_api_keys":

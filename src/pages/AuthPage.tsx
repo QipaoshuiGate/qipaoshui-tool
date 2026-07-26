@@ -219,7 +219,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
               )}
               {siteKey && (
                 <div className="flex justify-center">
-                  <Turnstile sitekey={siteKey} onToken={setTurnstileToken} />
+                  <Turnstile onToken={setTurnstileToken} />
                 </div>
               )}
               {err && <Alert>{err}</Alert>}
