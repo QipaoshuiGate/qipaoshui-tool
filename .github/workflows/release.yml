@@ -1,0 +1,78 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  # Reuse the CI jobs (frontend build + Rust tests) as a gate: no release
+  # build starts unless tests pass.
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest # Apple Silicon (M1 and later)
+            rust-target: aarch64-apple-darwin
+            tauri-args: --target aarch64-apple-darwin
+          - platform: macos-latest # Intel
+            rust-target: x86_64-apple-darwin
+            tauri-args: --target x86_64-apple-darwin
+          # ubuntu-22.04 (not -latest) so binaries link an older glibc and run
+          # on more distros. If GitHub retires this runner, bump to 24.04.
+          - platform: ubuntu-22.04
+            rust-target: ""
+            tauri-args: ""
+          - platform: windows-latest
+            rust-target: ""
+            tauri-args: ""
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Tauri system dependencies
+        if: startsWith(matrix.platform, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: ${{ matrix.platform }}-${{ matrix.rust-target }}
+
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build app and create GitHub release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "qipaoshui-tool ${{ github.ref_name }}"
+          releaseBody: |
+            Download the installer for your platform:
+            - **macOS**: `.dmg` (`aarch64` for Apple Silicon, `x64` for Intel)
+            - **Windows**: `.msi` or `-setup.exe`
+            - **Linux**: `.deb`, `.rpm`, or `.AppImage`
+          # Created as a draft: review the assets on the Releases page, then
+          # click "Publish". Set to false to publish automatically.
+          releaseDraft: true
+          # Tags like v0.2.0-beta.1 are marked as pre-releases.
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          args: ${{ matrix.tauri-args }}
