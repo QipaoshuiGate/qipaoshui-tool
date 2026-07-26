@@ -1,7 +1,50 @@
-# Tauri + React + Typescript
+# qipaoshui-tool
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+Qipaoshui sub2api desktop tool, built with Tauri 2, React 19, TypeScript, and Tailwind.
 
-## Recommended IDE Setup
+## Install
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+Grab the installer for your platform from the [Releases page](https://github.com/QipaoshuiGate/qipaoshui-tool/releases):
+
+- **macOS**: `.dmg` — `aarch64` for Apple Silicon, `x64` for Intel
+- **Windows**: `.msi` or `-setup.exe`
+- **Linux**: `.deb`, `.rpm`, or `.AppImage`
+
+### macOS first launch
+
+Builds are not notarized by Apple yet, so macOS warns about an unverified
+developer on first launch. Either approve the app under
+**System Settings → Privacy & Security → "Open Anyway"**, or clear the
+quarantine flag in a terminal:
+
+```sh
+xattr -cr /Applications/qipaoshui-tool.app
+```
+
+## Development
+
+Requires [Bun](https://bun.sh) and the [Tauri prerequisites](https://tauri.app/start/prerequisites/) (Rust toolchain and platform system libraries).
+
+```sh
+bun install
+bun tauri dev
+```
+
+Rust tests live in `src-tauri`:
+
+```sh
+cargo test --manifest-path src-tauri/Cargo.toml
+```
+
+## CI / Releases
+
+- Every push runs [CI](.github/workflows/ci.yml): frontend typecheck + build, and Rust tests.
+- Pushing a `v*` tag runs the [release workflow](.github/workflows/release.yml): tests gate a
+  4-platform build (macOS arm64/x64, Linux, Windows) via `tauri-action`, which uploads the
+  installers to a **draft** GitHub release — review it, then publish.
+
+To cut a release: bump `version` in `src-tauri/tauri.conf.json` and `package.json`, commit, then:
+
+```sh
+git tag vX.Y.Z && git push origin vX.Y.Z
+```
